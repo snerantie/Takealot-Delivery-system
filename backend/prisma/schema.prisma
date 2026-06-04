@@ -1,0 +1,510 @@
+// Prisma Schema for Takealot Delivery System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  driver
+  admin
+  super_admin
+}
+
+enum VehicleType {
+  car
+  bike
+  van
+}
+
+enum DriverStatus {
+  active
+  inactive
+  suspended
+}
+
+enum TripStatus {
+  pending
+  assigned
+  in_progress
+  completed
+  cancelled
+}
+
+enum PaymentMethod {
+  prepaid
+  cod
+}
+
+enum DepositStatus {
+  pending
+  deposited
+  verified
+  disputed
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  failed
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  paid
+  failed
+}
+
+enum NotificationPriority {
+  low
+  medium
+  high
+}
+
+enum BroadcastAudience {
+  all_drivers
+  active_drivers
+  specific_drivers
+  admins
+}
+
+enum BroadcastStatus {
+  draft
+  scheduled
+  sent
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
+  role               UserRole
+  firstName          String?   @map("first_name")
+  lastName           String?   @map("last_name")
+  phoneNumber        String?   @map("phone_number")
+  profilePictureUrl  String?   @map("profile_picture_url")
+  isActive           Boolean   @default(true) @map("is_active")
+  emailVerified      Boolean   @default(false) @map("email_verified")
+  phoneVerified      Boolean   @default(false) @map("phone_verified")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  lastLogin          DateTime? @map("last_login")
+
+  // Relations
+  driver             Driver?
+  refreshTokens      RefreshToken[]
+  assignedTrips      Trip[]                @relation("AssignedBy")
+  verifiedDeposits   CodCollection[]       @relation("VerifiedBy")
+  processedPayments  Payment[]             @relation("ProcessedBy")
+  notifications      Notification[]
+  createdBroadcasts  BroadcastMessage[]    @relation("CreatedBy")
+  broadcastRecipients BroadcastRecipient[]
+  verifiedDocuments  DriverDocument[]      @relation("VerifiedBy")
+  auditLogs          AuditLog[]
+  createdRoutes      Route[]
+  statusChanges      TripStatusHistory[]
+  updatedSettings    SystemSetting[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Driver {
+  id                 String        @id @default(uuid())
+  userId             String        @unique @map("user_id")
+  driverCode         String        @unique @map("driver_code")
+  vehicleType        VehicleType   @map("vehicle_type")
+  licenseNumber      String?       @map("license_number")
+  licenseExpiry      DateTime?     @map("license_expiry")
+  vehicleRegNumber   String?       @map("vehicle_reg_number")
+  vehicleMake        String?       @map("vehicle_make")
+  vehicleModel       String?       @map("vehicle_model")
+  vehicleYear        Int?          @map("vehicle_year")
+  bankAccountNumber  String?       @map("bank_account_number")
+  bankAccountHolder  String?       @map("bank_account_holder")
+  bankName           String?       @map("bank_name")
+  branchCode         String?       @map("branch_code")
+  status             DriverStatus  @default(active)
+  rating             Decimal       @default(0.00) @db.Decimal(3, 2)
+  totalDeliveries    Int           @default(0) @map("total_deliveries")
+  totalDistanceKm    Decimal       @default(0.00) @map("total_distance_km") @db.Decimal(10, 2)
+  joinedDate         DateTime      @default(now()) @map("joined_date") @db.Date
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips          Trip[]
+  codCollections CodCollection[]
+  payments       Payment[]
+  earnings       Earning[]
+  documents      DriverDocument[]
+
+  @@map("drivers")
+}
+
+model DriverDocument {
+  id           String    @id @default(uuid())
+  driverId     String    @map("driver_id")
+  documentType String    @map("document_type")
+  documentUrl  String    @map("document_url")
+  expiryDate   DateTime? @map("expiry_date") @db.Date
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  verifiedBy   String?   @map("verified_by")
+  verifiedAt   DateTime? @map("verified_at")
+
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  verifier User?  @relation("VerifiedBy", fields: [verifiedBy], references: [id])
+
+  @@map("driver_documents")
+}
+
+model Trip {
+  id                   String        @id @default(uuid())
+  tripNumber           String        @unique @map("trip_number")
+  driverId             String?       @map("driver_id")
+  assignedBy           String?       @map("assigned_by")
+  status               TripStatus    @default(pending)
+  
+  // Pickup
+  pickupAddress        String        @map("pickup_address")
+  pickupLat            Decimal?      @map("pickup_lat") @db.Decimal(10, 8)
+  pickupLng            Decimal?      @map("pickup_lng") @db.Decimal(11, 8)
+  pickupContactName    String?       @map("pickup_contact_name")
+  pickupContactPhone   String?       @map("pickup_contact_phone")
+  scheduledPickup      DateTime?     @map("scheduled_pickup")
+  actualPickup         DateTime?     @map("actual_pickup")
+  
+  // Delivery
+  deliveryAddress      String        @map("delivery_address")
+  deliveryLat          Decimal?      @map("delivery_lat") @db.Decimal(10, 8)
+  deliveryLng          Decimal?      @map("delivery_lng") @db.Decimal(11, 8)
+  customerName         String?       @map("customer_name")
+  customerPhone        String?       @map("customer_phone")
+  customerEmail        String?       @map("customer_email")
+  scheduledDelivery    DateTime?     @map("scheduled_delivery")
+  actualDelivery       DateTime?     @map("actual_delivery")
+  
+  // Metrics
+  distanceKm           Decimal?      @map("distance_km") @db.Decimal(10, 2)
+  estimatedDuration    Int?          @map("estimated_duration")
+  actualDuration       Int?          @map("actual_duration")
+  routeData            Json?         @map("route_data")
+  
+  // Payment
+  paymentMethod        PaymentMethod @default(prepaid) @map("payment_method")
+  codAmount            Decimal       @default(0.00) @map("cod_amount") @db.Decimal(10, 2)
+  deliveryFee          Decimal?      @map("delivery_fee") @db.Decimal(10, 2)
+  
+  // Additional
+  priority             Int           @default(0)
+  specialInstructions  String?       @map("special_instructions") @db.Text
+  notes                String?       @db.Text
+  
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  completedAt          DateTime?     @map("completed_at")
+  cancelledAt          DateTime?     @map("cancelled_at")
+  cancellationReason   String?       @map("cancellation_reason") @db.Text
+
+  // Relations
+  driver        Driver?             @relation(fields: [driverId], references: [id])
+  assigner      User?               @relation("AssignedBy", fields: [assignedBy], references: [id])
+  items         TripItem[]
+  statusHistory TripStatusHistory[]
+  codCollection CodCollection?
+  earnings      Earning[]
+  deliveryProof DeliveryProof?
+
+  @@map("trips")
+}
+
+model TripItem {
+  id              String  @id @default(uuid())
+  tripId          String  @map("trip_id")
+  itemDescription String  @map("item_description")
+  itemQuantity    Int     @default(1) @map("item_quantity")
+  itemWeightKg    Decimal? @map("item_weight_kg") @db.Decimal(10, 2)
+  itemValue       Decimal? @map("item_value") @db.Decimal(10, 2)
+  trackingNumber  String? @map("tracking_number")
+  barcode         String?
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trip_items")
+}
+
+model TripStatusHistory {
+  id          String   @id @default(uuid())
+  tripId      String   @map("trip_id")
+  status      String
+  notes       String?  @db.Text
+  locationLat Decimal? @map("location_lat") @db.Decimal(10, 8)
+  locationLng Decimal? @map("location_lng") @db.Decimal(11, 8)
+  changedBy   String?  @map("changed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  trip    Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  changer User? @relation(fields: [changedBy], references: [id])
+
+  @@map("trip_status_history")
+}
+
+model CodCollection {
+  id                  String             @id @default(uuid())
+  tripId              String             @unique @map("trip_id")
+  driverId            String             @map("driver_id")
+  
+  // Collection
+  amountCollected     Decimal            @map("amount_collected") @db.Decimal(10, 2)
+  collectionTime      DateTime           @default(now()) @map("collection_time")
+  collectionNotes     String?            @map("collection_notes") @db.Text
+  
+  // Deposit
+  depositStatus       DepositStatus      @default(pending) @map("deposit_status")
+  atmReference        String?            @map("atm_reference")
+  atmDepositTime      DateTime?          @map("atm_deposit_time")
+  bankName            String?            @map("bank_name")
+  atmLocation         String?            @map("atm_location")
+  atmReceiptUrl       String?            @map("atm_receipt_url")
+  
+  // Verification
+  verificationStatus  VerificationStatus @default(pending) @map("verification_status")
+  verifiedAmount      Decimal?           @map("verified_amount") @db.Decimal(10, 2)
+  verifiedAt          DateTime?          @map("verified_at")
+  verifiedBy          String?            @map("verified_by")
+  verificationNotes   String?            @map("verification_notes") @db.Text
+  
+  // Discrepancy
+  discrepancyAmount   Decimal            @default(0.00) @map("discrepancy_amount") @db.Decimal(10, 2)
+  discrepancyReason   String?            @map("discrepancy_reason") @db.Text
+  discrepancyResolved Boolean            @default(false) @map("discrepancy_resolved")
+  
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  trip     Trip   @relation(fields: [tripId], references: [id])
+  driver   Driver @relation(fields: [driverId], references: [id])
+  verifier User?  @relation("VerifiedBy", fields: [verifiedBy], references: [id])
+
+  @@map("cod_collections")
+}
+
+model Payment {
+  id                  String        @id @default(uuid())
+  paymentNumber       String        @unique @map("payment_number")
+  driverId            String        @map("driver_id")
+  
+  // Period
+  paymentPeriodStart  DateTime      @map("payment_period_start") @db.Date
+  paymentPeriodEnd    DateTime      @map("payment_period_end") @db.Date
+  
+  // Calculations
+  totalDeliveries     Int           @default(0) @map("total_deliveries")
+  totalCodCollected   Decimal       @default(0.00) @map("total_cod_collected") @db.Decimal(10, 2)
+  baseEarnings        Decimal       @default(0.00) @map("base_earnings") @db.Decimal(10, 2)
+  distanceEarnings    Decimal       @default(0.00) @map("distance_earnings") @db.Decimal(10, 2)
+  codHandlingFees     Decimal       @default(0.00) @map("cod_handling_fees") @db.Decimal(10, 2)
+  bonuses             Decimal       @default(0.00) @db.Decimal(10, 2)
+  totalEarnings       Decimal       @map("total_earnings") @db.Decimal(10, 2)
+  
+  // Deductions
+  fuelDeductions      Decimal       @default(0.00) @map("fuel_deductions") @db.Decimal(10, 2)
+  damageDeductions    Decimal       @default(0.00) @map("damage_deductions") @db.Decimal(10, 2)
+  otherDeductions     Decimal       @default(0.00) @map("other_deductions") @db.Decimal(10, 2)
+  totalDeductions     Decimal       @default(0.00) @map("total_deductions") @db.Decimal(10, 2)
+  
+  netPayment          Decimal       @map("net_payment") @db.Decimal(10, 2)
+  
+  // Processing
+  paymentStatus       PaymentStatus @default(pending) @map("payment_status")
+  paymentDate         DateTime?     @map("payment_date") @db.Date
+  paymentReference    String?       @map("payment_reference")
+  paymentMethod       String?       @map("payment_method")
+  paymentNotes        String?       @map("payment_notes") @db.Text
+  
+  processedBy         String?       @map("processed_by")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  driver    Driver @relation(fields: [driverId], references: [id])
+  processor User?  @relation("ProcessedBy", fields: [processedBy], references: [id])
+
+  @@map("payments")
+}
+
+model Earning {
+  id               String   @id @default(uuid())
+  driverId         String   @map("driver_id")
+  tripId           String   @map("trip_id")
+  date             DateTime @default(now()) @map("date") @db.Date
+  
+  baseFee          Decimal  @default(0.00) @map("base_fee") @db.Decimal(10, 2)
+  distanceFee      Decimal  @default(0.00) @map("distance_fee") @db.Decimal(10, 2)
+  timeFee          Decimal  @default(0.00) @map("time_fee") @db.Decimal(10, 2)
+  codHandlingFee   Decimal  @default(0.00) @map("cod_handling_fee") @db.Decimal(10, 2)
+  peakHourBonus    Decimal  @default(0.00) @map("peak_hour_bonus") @db.Decimal(10, 2)
+  performanceBonus Decimal  @default(0.00) @map("performance_bonus") @db.Decimal(10, 2)
+  
+  totalEarned      Decimal  @map("total_earned") @db.Decimal(10, 2)
+  
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  driver Driver @relation(fields: [driverId], references: [id])
+  trip   Trip   @relation(fields: [tripId], references: [id])
+
+  @@map("earnings")
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String               @map("user_id")
+  type      String
+  title     String
+  message   String               @db.Text
+  data      Json?
+  actionUrl String?              @map("action_url")
+  isRead    Boolean              @default(false) @map("is_read")
+  readAt    DateTime?            @map("read_at")
+  priority  NotificationPriority @default(medium)
+  sentVia   String[]             @default(["in_app"]) @map("sent_via")
+  createdAt DateTime             @default(now()) @map("created_at")
+  expiresAt DateTime?            @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model BroadcastMessage {
+  id               String            @id @default(uuid())
+  createdBy        String            @map("created_by")
+  title            String
+  message          String            @db.Text
+  targetAudience   BroadcastAudience @map("target_audience")
+  targetDriverIds  String[]          @map("target_driver_ids")
+  deliveryMethod   String[]          @default(["push"]) @map("delivery_method")
+  sentAt           DateTime?         @map("sent_at")
+  scheduledFor     DateTime?         @map("scheduled_for")
+  status           BroadcastStatus   @default(draft)
+  totalRecipients  Int               @default(0) @map("total_recipients")
+  totalDelivered   Int               @default(0) @map("total_delivered")
+  totalRead        Int               @default(0) @map("total_read")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  creator    User                 @relation("CreatedBy", fields: [createdBy], references: [id])
+  recipients BroadcastRecipient[]
+
+  @@map("broadcast_messages")
+}
+
+model BroadcastRecipient {
+  id           String    @id @default(uuid())
+  broadcastId  String    @map("broadcast_id")
+  userId       String    @map("user_id")
+  deliveredAt  DateTime? @map("delivered_at")
+  readAt       DateTime? @map("read_at")
+
+  broadcast BroadcastMessage @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, userId])
+  @@map("broadcast_recipients")
+}
+
+model DeliveryProof {
+  id                     String   @id @default(uuid())
+  tripId                 String   @unique @map("trip_id")
+  signatureUrl           String?  @map("signature_url")
+  photoUrls              String[] @default([]) @map("photo_urls")
+  customerName           String?  @map("customer_name")
+  customerSignatureName  String?  @map("customer_signature_name")
+  recipientRelationship  String?  @map("recipient_relationship")
+  notes                  String?  @db.Text
+  gpsLat                 Decimal? @map("gps_lat") @db.Decimal(10, 8)
+  gpsLng                 Decimal? @map("gps_lng") @db.Decimal(11, 8)
+  gpsAccuracy            Decimal? @map("gps_accuracy") @db.Decimal(10, 2)
+  capturedAt             DateTime @default(now()) @map("captured_at")
+  uploadedAt             DateTime @default(now()) @map("uploaded_at")
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_proofs")
+}
+
+model Route {
+  id                String   @id @default(uuid())
+  name              String
+  description       String?  @db.Text
+  waypoints         Json
+  optimizedOrder    Int[]    @map("optimized_order")
+  totalDistanceKm   Decimal? @map("total_distance_km") @db.Decimal(10, 2)
+  estimatedDuration Int?     @map("estimated_duration")
+  isActive          Boolean  @default(true) @map("is_active")
+  isTemplate        Boolean  @default(false) @map("is_template")
+  createdBy         String?  @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@map("routes")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  dataType    String?  @map("data_type")
+  description String?  @db.Text
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updater User? @relation(fields: [updatedBy], references: [id])
+
+  @@map("system_settings")
+}
