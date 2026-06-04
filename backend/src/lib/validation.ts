@@ -164,3 +164,36 @@ export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type UpdateTripStatusInput = z.infer<typeof updateTripStatusSchema>;
 export type TripMilestoneInput = z.infer<typeof tripMilestoneSchema>;
+
+
+// ============================================================================
+// COD COLLECTION SCHEMAS
+// ============================================================================
+
+export const recordCodCollectionSchema = z.object({
+  tripId: z.string().uuid('A valid trip id is required'),
+  amountCollected: z.number().positive('Amount collected must be greater than 0'),
+  collectionNotes: z.string().max(2000).optional(),
+});
+
+export const recordDepositSchema = z.object({
+  atmReference: z
+    .string()
+    .min(4, 'ATM reference must be at least 4 characters')
+    .max(100)
+    .regex(/^[A-Za-z0-9-]+$/, 'ATM reference may only contain letters, numbers and dashes'),
+  bankName: z.string().min(1, 'Bank name is required').max(100),
+  atmLocation: z.string().max(255).optional(),
+  atmDepositTime: z.coerce.date().optional(),
+});
+
+// Admin manual override / dispute resolution
+export const resolveCodSchema = z.object({
+  approve: z.boolean(),
+  verifiedAmount: z.number().nonnegative().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export type RecordCodCollectionInput = z.infer<typeof recordCodCollectionSchema>;
+export type RecordDepositInput = z.infer<typeof recordDepositSchema>;
+export type ResolveCodInput = z.infer<typeof resolveCodSchema>;

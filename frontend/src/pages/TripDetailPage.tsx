@@ -8,6 +8,7 @@ import {
   useUpdateTripStatus,
 } from '../lib/trips';
 import StatusBadge from '../components/StatusBadge';
+import TripCodPanel from '../components/TripCodPanel';
 import { formatCurrency, formatDateTime, statusLabel } from '../lib/format';
 
 export default function TripDetailPage() {
@@ -154,6 +155,9 @@ export default function TripDetailPage() {
         </div>
       </div>
 
+
+      {/* COD flow for completed cash-on-delivery trips */}
+      <TripCodPanel trip={trip} />
 
       {/* Status timeline */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">

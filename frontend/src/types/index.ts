@@ -79,6 +79,13 @@ export interface Trip {
   driver?: Driver;
   items?: TripItem[];
   statusHistory?: TripStatusHistory[];
+  codCollection?: {
+    id: string;
+    amountCollected: string | number;
+    depositStatus: string;
+    verificationStatus: string;
+    atmReference?: string;
+  } | null;
   _count?: { items: number };
   createdAt?: string;
 }
