@@ -89,6 +89,11 @@ app.use(errorHandler);
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  // Per-user room for targeted notifications
+  socket.on('join:user', (userId: string) => {
+    socket.join(`user:${userId}`);
+  });
+
   socket.on('join:driver', (driverId: string) => {
     socket.join(`driver:${driverId}`);
     console.log(`Driver ${driverId} joined their room`);
