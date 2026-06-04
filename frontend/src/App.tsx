@@ -11,6 +11,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import TripsPage from './pages/TripsPage';
+import TripDetailPage from './pages/TripDetailPage';
+import NewTripPage from './pages/NewTripPage';
 import EarningsPage from './pages/EarningsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -47,6 +49,26 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <TripsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips/new"
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.admin, UserRole.super_admin]}>
+              <Layout>
+                <NewTripPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <TripDetailPage />
               </Layout>
             </ProtectedRoute>
           }

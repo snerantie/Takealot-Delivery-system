@@ -77,3 +77,90 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdateDriverInput = z.infer<typeof updateDriverSchema>;
+
+
+// ============================================================================
+// TRIP SCHEMAS
+// ============================================================================
+
+const tripItemSchema = z.object({
+  itemDescription: z.string().min(1, 'Item description is required').max(500),
+  itemQuantity: z.number().int().positive().default(1),
+  itemValue: z.number().nonnegative().optional(),
+  trackingNumber: z.string().max(100).optional(),
+});
+
+export const createTripSchema = z
+  .object({
+    // Pickup
+    pickupAddress: z.string().min(1, 'Pickup address is required').max(500),
+    pickupLat: z.number().min(-90).max(90).optional(),
+    pickupLng: z.number().min(-180).max(180).optional(),
+    pickupContactName: z.string().max(255).optional(),
+    pickupContactPhone: z.string().max(20).optional(),
+    scheduledPickup: z.coerce.date().optional(),
+    // Delivery
+    deliveryAddress: z.string().min(1, 'Delivery address is required').max(500),
+    deliveryLat: z.number().min(-90).max(90).optional(),
+    deliveryLng: z.number().min(-180).max(180).optional(),
+    customerName: z.string().max(255).optional(),
+    customerPhone: z.string().max(20).optional(),
+    customerEmail: z.string().email().optional().or(z.literal('')),
+    scheduledDelivery: z.coerce.date().optional(),
+    // Metrics & payment
+    distanceKm: z.number().nonnegative().optional(),
+    deliveryFee: z.number().nonnegative().optional(),
+    paymentMethod: z.enum(['prepaid', 'cod']).default('prepaid'),
+    codAmount: z.number().nonnegative().default(0),
+    priority: z.number().int().min(0).max(5).default(0),
+    specialInstructions: z.string().max(2000).optional(),
+    notes: z.string().max(2000).optional(),
+    // Optional assignment at creation time
+    driverId: z.string().uuid().optional(),
+    items: z.array(tripItemSchema).optional(),
+  })
+  .refine((d) => d.paymentMethod !== 'cod' || d.codAmount > 0, {
+    message: 'COD trips must have a COD amount greater than 0',
+    path: ['codAmount'],
+  });
+
+
+export const updateTripSchema = z.object({
+  pickupAddress: z.string().min(1).max(500).optional(),
+  pickupContactName: z.string().max(255).optional(),
+  pickupContactPhone: z.string().max(20).optional(),
+  scheduledPickup: z.coerce.date().optional(),
+  deliveryAddress: z.string().min(1).max(500).optional(),
+  customerName: z.string().max(255).optional(),
+  customerPhone: z.string().max(20).optional(),
+  scheduledDelivery: z.coerce.date().optional(),
+  distanceKm: z.number().nonnegative().optional(),
+  deliveryFee: z.number().nonnegative().optional(),
+  priority: z.number().int().min(0).max(5).optional(),
+  specialInstructions: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const assignTripSchema = z.object({
+  driverId: z.string().uuid('A valid driver id is required'),
+});
+
+export const updateTripStatusSchema = z.object({
+  status: z.enum(['pending', 'assigned', 'in_progress', 'completed', 'cancelled']),
+  notes: z.string().max(2000).optional(),
+  locationLat: z.number().min(-90).max(90).optional(),
+  locationLng: z.number().min(-180).max(180).optional(),
+});
+
+// Used for both pickup and delivery confirmation timestamps
+export const tripMilestoneSchema = z.object({
+  timestamp: z.coerce.date().optional(),
+  notes: z.string().max(2000).optional(),
+  locationLat: z.number().min(-90).max(90).optional(),
+  locationLng: z.number().min(-180).max(180).optional(),
+});
+
+export type CreateTripInput = z.infer<typeof createTripSchema>;
+export type UpdateTripInput = z.infer<typeof updateTripSchema>;
+export type UpdateTripStatusInput = z.infer<typeof updateTripStatusSchema>;
+export type TripMilestoneInput = z.infer<typeof tripMilestoneSchema>;

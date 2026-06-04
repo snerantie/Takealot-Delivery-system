@@ -39,21 +39,65 @@ export interface Driver {
   user?: User;
 }
 
+export interface TripItem {
+  id?: string;
+  itemDescription: string;
+  itemQuantity: number;
+  itemValue?: number;
+  trackingNumber?: string;
+}
+
+export interface TripStatusHistory {
+  id: string;
+  status: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface Trip {
   id: string;
   tripNumber: string;
   status: TripStatus;
   pickupAddress: string;
+  pickupContactName?: string;
+  pickupContactPhone?: string;
   deliveryAddress: string;
   customerName?: string;
+  customerPhone?: string;
   scheduledPickup?: string;
   scheduledDelivery?: string;
   actualPickup?: string;
   actualDelivery?: string;
   distanceKm?: number;
   deliveryFee?: number;
+  paymentMethod?: 'prepaid' | 'cod';
   codAmount?: number;
+  priority?: number;
+  specialInstructions?: string;
+  notes?: string;
+  driverId?: string;
   driver?: Driver;
+  items?: TripItem[];
+  statusHistory?: TripStatusHistory[];
+  _count?: { items: number };
+  createdAt?: string;
+}
+
+export interface TripStats {
+  pending: number;
+  assigned: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  total: number;
+  active: number;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface Earning {
@@ -93,4 +137,5 @@ export interface RegisterRequest {
   lastName: string;
   phoneNumber: string;
   role: UserRole;
+  vehicleType?: VehicleType;
 }
