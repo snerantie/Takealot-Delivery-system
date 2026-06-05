@@ -1,0 +1,35 @@
+# Local development services for the Takealot Delivery System.
+# Spins up PostgreSQL (required) and Redis (optional, for future background jobs).
+#
+# Usage:
+#   docker compose up -d        # start the database
+#   docker compose down         # stop it
+#   docker compose down -v      # stop and wipe all data
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: takealot-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: takealot_delivery
+    ports:
+      - "5432:5432"
+    volumes:
+      - takealot_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: takealot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  takealot_pg_data:
