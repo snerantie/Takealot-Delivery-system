@@ -1,0 +1,36 @@
+# Render Blueprint — deploys the backend API + a free PostgreSQL database.
+# Import this from the Render dashboard: New + → Blueprint → connect this repo.
+# See DEPLOYMENT.md for the full walkthrough.
+services:
+  - type: web
+    name: takealot-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build && npx prisma generate
+    startCommand: npx prisma db push --accept-data-loss && node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: takealot-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: BANK_VERIFICATION_PROVIDER
+        value: simulated
+      # Set this to your deployed frontend URL after deploying the frontend
+      - key: FRONTEND_URL
+        sync: false
+
+databases:
+  - name: takealot-db
+    plan: free
