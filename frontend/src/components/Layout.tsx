@@ -6,6 +6,7 @@ import {
   Wallet,
   CreditCard,
   Shield,
+  Megaphone,
   LogOut,
   Menu,
   X,
@@ -13,6 +14,8 @@ import {
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
 import { UserRole } from '../types';
+import { useRealtime } from '../hooks/useRealtime';
+import NotificationBell from './NotificationBell';
 import toast from 'react-hot-toast';
 
 interface NavItem {
@@ -28,6 +31,12 @@ const navItems: NavItem[] = [
   { label: 'Earnings', to: '/earnings', icon: <Wallet size={20} /> },
   { label: 'Payments', to: '/payments', icon: <CreditCard size={20} /> },
   {
+    label: 'Broadcasts',
+    to: '/broadcasts',
+    icon: <Megaphone size={20} />,
+    roles: [UserRole.admin, UserRole.super_admin],
+  },
+  {
     label: 'Admin',
     to: '/admin',
     icon: <Shield size={20} />,
@@ -39,6 +48,9 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Connect realtime updates + notifications for the logged-in user
+  useRealtime();
 
   const handleLogout = async () => {
     await logout();
@@ -74,6 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900">
                 {user?.firstName} {user?.lastName}
