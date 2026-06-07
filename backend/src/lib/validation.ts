@@ -197,3 +197,24 @@ export const resolveCodSchema = z.object({
 export type RecordCodCollectionInput = z.infer<typeof recordCodCollectionSchema>;
 export type RecordDepositInput = z.infer<typeof recordDepositSchema>;
 export type ResolveCodInput = z.infer<typeof resolveCodSchema>;
+
+
+// ============================================================================
+// BROADCAST SCHEMAS
+// ============================================================================
+
+export const createBroadcastSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required').max(255),
+    message: z.string().min(1, 'Message is required').max(5000),
+    targetAudience: z.enum(['all_drivers', 'active_drivers', 'specific_drivers', 'admins']),
+    targetDriverIds: z.array(z.string().uuid()).optional(),
+    deliveryMethod: z.array(z.enum(['in_app', 'push', 'sms', 'email'])).default(['in_app']),
+    priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  })
+  .refine(
+    (d) => d.targetAudience !== 'specific_drivers' || (d.targetDriverIds && d.targetDriverIds.length > 0),
+    { message: 'Select at least one driver for a specific-driver broadcast', path: ['targetDriverIds'] }
+  );
+
+export type CreateBroadcastInput = z.infer<typeof createBroadcastSchema>;
