@@ -164,3 +164,57 @@ export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type UpdateTripStatusInput = z.infer<typeof updateTripStatusSchema>;
 export type TripMilestoneInput = z.infer<typeof tripMilestoneSchema>;
+
+
+// ============================================================================
+// COD COLLECTION SCHEMAS
+// ============================================================================
+
+export const recordCodCollectionSchema = z.object({
+  tripId: z.string().uuid('A valid trip id is required'),
+  amountCollected: z.number().positive('Amount collected must be greater than 0'),
+  collectionNotes: z.string().max(2000).optional(),
+});
+
+export const recordDepositSchema = z.object({
+  atmReference: z
+    .string()
+    .min(4, 'ATM reference must be at least 4 characters')
+    .max(100)
+    .regex(/^[A-Za-z0-9-]+$/, 'ATM reference may only contain letters, numbers and dashes'),
+  bankName: z.string().min(1, 'Bank name is required').max(100),
+  atmLocation: z.string().max(255).optional(),
+  atmDepositTime: z.coerce.date().optional(),
+});
+
+// Admin manual override / dispute resolution
+export const resolveCodSchema = z.object({
+  approve: z.boolean(),
+  verifiedAmount: z.number().nonnegative().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export type RecordCodCollectionInput = z.infer<typeof recordCodCollectionSchema>;
+export type RecordDepositInput = z.infer<typeof recordDepositSchema>;
+export type ResolveCodInput = z.infer<typeof resolveCodSchema>;
+
+
+// ============================================================================
+// BROADCAST SCHEMAS
+// ============================================================================
+
+export const createBroadcastSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required').max(255),
+    message: z.string().min(1, 'Message is required').max(5000),
+    targetAudience: z.enum(['all_drivers', 'active_drivers', 'specific_drivers', 'admins']),
+    targetDriverIds: z.array(z.string().uuid()).optional(),
+    deliveryMethod: z.array(z.enum(['in_app', 'push', 'sms', 'email'])).default(['in_app']),
+    priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  })
+  .refine(
+    (d) => d.targetAudience !== 'specific_drivers' || (d.targetDriverIds && d.targetDriverIds.length > 0),
+    { message: 'Select at least one driver for a specific-driver broadcast', path: ['targetDriverIds'] }
+  );
+
+export type CreateBroadcastInput = z.infer<typeof createBroadcastSchema>;
