@@ -8,8 +8,9 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install --include=dev && npx prisma generate && npm run build
-    # Sync schema, seed demo accounts (idempotent; non-blocking), then start
-    startCommand: npx prisma db push --accept-data-loss && (npm run prisma:seed || echo "seed skipped") && node dist/index.js
+    # Sync schema, seed demo accounts (idempotent; non-blocking), then start.
+    # Uses the plain-JS seed so it runs in production without tsx (a devDep).
+    startCommand: npx prisma db push --accept-data-loss && (node prisma/seed.js || echo "seed skipped") && node dist/index.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
