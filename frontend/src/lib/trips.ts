@@ -9,10 +9,14 @@ export interface TripListResponse {
 
 export interface CreateTripPayload {
   pickupAddress: string;
+  pickupLat?: number;
+  pickupLng?: number;
   pickupContactName?: string;
   pickupContactPhone?: string;
   scheduledPickup?: string;
   deliveryAddress: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
   customerName?: string;
   customerPhone?: string;
   scheduledDelivery?: string;

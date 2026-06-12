@@ -5,12 +5,17 @@ import { z } from 'zod';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateTrip, CreateTripPayload } from '../lib/trips';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 const schema = z.object({
   pickupAddress: z.string().min(1, 'Pickup address is required'),
+  pickupLat: z.coerce.number().optional(),
+  pickupLng: z.coerce.number().optional(),
   pickupContactPhone: z.string().optional(),
   scheduledPickup: z.string().optional(),
   deliveryAddress: z.string().min(1, 'Delivery address is required'),
+  deliveryLat: z.coerce.number().optional(),
+  deliveryLng: z.coerce.number().optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   scheduledDelivery: z.string().optional(),
@@ -37,6 +42,7 @@ export default function NewTripPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -44,15 +50,21 @@ export default function NewTripPage() {
   });
 
   const paymentMethod = watch('paymentMethod');
+  const pickupAddress = watch('pickupAddress') || '';
+  const deliveryAddress = watch('deliveryAddress') || '';
 
   const onSubmit = (values: FormValues) => {
     const payload: CreateTripPayload = {
       pickupAddress: values.pickupAddress,
+      pickupLat: values.pickupLat,
+      pickupLng: values.pickupLng,
       pickupContactPhone: values.pickupContactPhone || undefined,
       scheduledPickup: values.scheduledPickup
         ? new Date(values.scheduledPickup).toISOString()
         : undefined,
       deliveryAddress: values.deliveryAddress,
+      deliveryLat: values.deliveryLat,
+      deliveryLng: values.deliveryLng,
       customerName: values.customerName || undefined,
       customerPhone: values.customerPhone || undefined,
       scheduledDelivery: values.scheduledDelivery
@@ -87,7 +99,17 @@ export default function NewTripPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 bg-white rounded-xl border border-gray-200 p-6">
         <div>
           <label className={labelCls}>Pickup address</label>
-          <input {...register('pickupAddress')} className={input} placeholder="Takealot DC, Cape Town" />
+          <AddressAutocomplete
+            value={pickupAddress}
+            onChange={(v) => setValue('pickupAddress', v, { shouldValidate: true })}
+            onSelect={(s) => {
+              setValue('pickupAddress', s.label, { shouldValidate: true });
+              setValue('pickupLat', s.lat);
+              setValue('pickupLng', s.lng);
+            }}
+            className={input}
+            placeholder="Start typing... e.g. 'Ndlovu' or 'Takealot DC'"
+          />
           {errors.pickupAddress && <p className="mt-1 text-xs text-red-600">{errors.pickupAddress.message}</p>}
         </div>
 
@@ -104,7 +126,17 @@ export default function NewTripPage() {
 
         <div>
           <label className={labelCls}>Delivery address</label>
-          <input {...register('deliveryAddress')} className={input} placeholder="12 Main Rd, Claremont" />
+          <AddressAutocomplete
+            value={deliveryAddress}
+            onChange={(v) => setValue('deliveryAddress', v, { shouldValidate: true })}
+            onSelect={(s) => {
+              setValue('deliveryAddress', s.label, { shouldValidate: true });
+              setValue('deliveryLat', s.lat);
+              setValue('deliveryLng', s.lng);
+            }}
+            className={input}
+            placeholder="Start typing the delivery address..."
+          />
           {errors.deliveryAddress && <p className="mt-1 text-xs text-red-600">{errors.deliveryAddress.message}</p>}
         </div>
 
