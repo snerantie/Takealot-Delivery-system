@@ -25,12 +25,13 @@ All you need are two free accounts: **Render** (https://render.com) and
 6. Test it: open `https://takealot-api.onrender.com/health` — you should see
    `{"status":"ok",...}`.
 
-### Create your admin login (one-time)
-On the `takealot-api` service page, open the **Shell** tab and run:
+### Your login accounts
+The demo admin and driver accounts are created **automatically** on first deploy
+(credentials below). If for some reason you can't log in, open the `takealot-api`
+service → **Shell** tab and run it manually:
 ```bash
 npm run prisma:seed
 ```
-This creates the demo admin and driver accounts (credentials below).
 
 
 ---
